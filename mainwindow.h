@@ -8,6 +8,7 @@
 #include <QCoreApplication>
 #include <QKeyEvent>
 #include <QMatrix4x4>
+#include <QVector2D>
 
 #include <QTime>
 
@@ -56,6 +57,11 @@ private:
     QFile orbitFile;
     void readHeader();
 
+    struct DynamicPlanetSample {
+        unsigned char count;
+        QVector2D position;
+    };
+
     float deltaT;
     float dotsPerFrame;
     QVector2D minBounder;
@@ -63,7 +69,7 @@ private:
     unsigned int samples;
     unsigned int counter;
     QVector<float> staticPlanets;
-    unsigned int dynamicPlanets;
+    QVector<QList<DynamicPlanetSample> > dynamicPlanets;
     QVector<QRgb> planetColors;
 
     //Прочитать несколько отсчетов координат нескольких планет
