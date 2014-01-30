@@ -35,8 +35,6 @@ void MainWindow::render()
     m_program->enableAttributeArray(m_vertexAttr);
 
     incrementCounter();
-    if (counter > samples)
-        counter = samples;
     for (int i = 0; i < staticPlanets.size(); i += 2) {
         m_program->setUniformValue(m_colorUni, QColor(planetColors.at(i)));
         glDrawArrays(GL_POINTS, i / 2, 1);
@@ -44,7 +42,7 @@ void MainWindow::render()
 
     for (int i = 0; i < dynamicPlanets.size(); i++) {
         m_program->setUniformValue(m_colorUni, QColor(planetColors.at(i + staticPlanets.size() / 2)));
-        glDrawArrays(GL_LINE_STRIP, samples * i + staticPlanets.size() / 2, counter);
+        glDrawArrays(GL_LINE_STRIP, samples * i + staticPlanets.size() / 2, dynamicPlanetCounters.at(i));
     }
 
     m_glBuffer->release();
@@ -109,7 +107,6 @@ void MainWindow::renderNow()
 
 void MainWindow::initialize()
 {
-    counter = 0;
     dotsPerFrame = 0;
 
     m_context = new QOpenGLContext(this);
@@ -159,6 +156,7 @@ void MainWindow::readHeader()
     unsigned int dynamicPlanetsCount;
     orbitFile.read(reinterpret_cast<char*>(&dynamicPlanetsCount), sizeof(unsigned int));
     dynamicPlanets.resize(dynamicPlanetsCount);
+    dynamicPlanetCounters.fill(0, dynamicPlanetsCount);
     planetColors.resize(staticPlanetsCount + dynamicPlanetsCount);
     orbitFile.read(reinterpret_cast<char*>(planetColors.data() + staticPlanetsCount), dynamicPlanetsCount * sizeof(QRgb));
 }
@@ -189,15 +187,9 @@ void MainWindow::readSamples()
         }
     }
 
-    for (int i = 0; i < dynamicPlanets.size(); i++) {
-        int buffOffset = 0;
-        QVector<QVector2D> toBuffer;
-        for (int j = 0; j < dynamicPlanets.at(i).size(); j++) {
-            toBuffer.fill(dynamicPlanets.at(i).at(j).position, dynamicPlanets.at(i).at(j).count);
-            m_glBuffer->write(((i * samples + buffOffset) * 2 + staticPlanets.size()) * sizeof(float), toBuffer.constData(), toBuffer.size() * sizeof(QVector2D));
-            buffOffset += toBuffer.size();
-        }
-    }
+    for (int i = 0; i < dynamicPlanets.size(); i++)
+        for (int j = 0; j < dynamicPlanets.at(i).size(); j++)
+            m_glBuffer->write(((i * samples + j) * 2 + staticPlanets.size()) * sizeof(float), reinterpret_cast<const char*>(&dynamicPlanets.at(i).at(j).position), sizeof(QVector2D));
 }
 
 void MainWindow::incrementCounter()
@@ -206,9 +198,23 @@ void MainWindow::incrementCounter()
     dotsPerFrame += timer.restart()/1000.0/deltaT;
     int k = dotsPerFrame;
     dotsPerFrame -= k;
-    if (k > 0 && counter < samples) {
-        if (k > (samples - counter))
-            k = samples - counter;
-        counter += k;
+    if (k > 0) {
+        for (int i = 0; i < dynamicPlanets.size(); i++) {
+            int pk = k;
+            int j = dynamicPlanetCounters.at(i);
+            for (; pk > 0 && j < dynamicPlanets.at(i).size();) {
+                if (dynamicPlanets.at(i).at(j).tmpCounter == 0)
+                    dynamicPlanets[i][j].tmpCounter = dynamicPlanets.at(i).at(j).count;
+                if (pk >= dynamicPlanets.at(i).at(j).tmpCounter) {
+                    pk -= dynamicPlanets.at(i).at(j).tmpCounter;
+                    dynamicPlanets[i][j].tmpCounter = 0;
+                    j++;
+                } else {
+                    dynamicPlanets[i][j].tmpCounter -= pk;
+                    pk = 0;
+                }
+            }
+            dynamicPlanetCounters[i] = j;
+        }
     }
 }

@@ -59,7 +59,13 @@ private:
 
     struct DynamicPlanetSample {
         unsigned char count;
+        unsigned char tmpCounter;
         QVector2D position;
+
+        DynamicPlanetSample() :
+            count(0),
+            tmpCounter(0)
+        {}
     };
 
     float deltaT;
@@ -67,8 +73,8 @@ private:
     QVector2D minBounder;
     QVector2D maxBounder;
     unsigned int samples;
-    unsigned int counter;
     QVector<float> staticPlanets;
+    QVector<int> dynamicPlanetCounters;
     QVector<QList<DynamicPlanetSample> > dynamicPlanets;
     QVector<QRgb> planetColors;
 
