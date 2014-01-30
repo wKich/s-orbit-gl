@@ -74,6 +74,7 @@ private:
 
     //Прочитать несколько отсчетов координат нескольких планет
     void readSamples();
+    void incrementCounter();
 };
 
 #endif // MAINWINDOW_H

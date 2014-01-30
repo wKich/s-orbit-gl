@@ -34,7 +34,7 @@ void MainWindow::render()
     m_program->setAttributeBuffer(m_vertexAttr, GL_FLOAT, 0, 2);
     m_program->enableAttributeArray(m_vertexAttr);
 
-    readSamples();
+    incrementCounter();
     if (counter > samples)
         counter = samples;
     for (int i = 0; i < staticPlanets.size(); i += 2) {
@@ -111,7 +111,6 @@ void MainWindow::initialize()
 {
     counter = 0;
     dotsPerFrame = 0;
-    timer.start();
 
     m_context = new QOpenGLContext(this);
     m_context->setFormat(requestedFormat());
@@ -132,7 +131,10 @@ void MainWindow::initialize()
     m_glBuffer->bind();
     m_glBuffer->allocate((dynamicPlanets.size() * samples * 2 + staticPlanets.size()) * sizeof(float));
     m_glBuffer->write(0, staticPlanets.constData(), staticPlanets.size() * sizeof(float));
+    readSamples();
     m_glBuffer->release();
+
+    timer.start();
 }
 
 void MainWindow::readHeader()
@@ -163,6 +165,43 @@ void MainWindow::readHeader()
 
 void MainWindow::readSamples()
 {
+    bool eof = false;
+    while (!eof) {
+        DynamicPlanetSample buffSample;
+        for (int i = 0; i < dynamicPlanets.size(); i++) {
+            if (orbitFile.read(reinterpret_cast<char*>(&buffSample.count), sizeof(unsigned char)) != sizeof(unsigned char)) {
+                //Конец файла
+                qDebug() << "EOF" << i << dynamicPlanets.at(i).size();
+                eof = true;
+                break;
+            }
+            if (buffSample.count == 0) {
+                orbitFile.read(sizeof(QVector2D));
+            } else {
+                if (orbitFile.read(reinterpret_cast<char*>(&buffSample.position), sizeof(QVector2D)) != sizeof(QVector2D)) {
+                    //Конец файла
+                    qDebug() << "EOF" << i << dynamicPlanets.at(i).size();
+                    eof = true;
+                    break;
+                }
+                dynamicPlanets[i].append(buffSample);
+            }
+        }
+    }
+
+    for (int i = 0; i < dynamicPlanets.size(); i++) {
+        int buffOffset = 0;
+        QVector<QVector2D> toBuffer;
+        for (int j = 0; j < dynamicPlanets.at(i).size(); j++) {
+            toBuffer.fill(dynamicPlanets.at(i).at(j).position, dynamicPlanets.at(i).at(j).count);
+            m_glBuffer->write(((i * samples + buffOffset) * 2 + staticPlanets.size()) * sizeof(float), toBuffer.constData(), toBuffer.size() * sizeof(QVector2D));
+            buffOffset += toBuffer.size();
+        }
+    }
+}
+
+void MainWindow::incrementCounter()
+{
     //Очищать dotsperframe
     dotsPerFrame += timer.restart()/1000.0/deltaT;
     int k = dotsPerFrame;
@@ -170,53 +209,6 @@ void MainWindow::readSamples()
     if (k > 0 && counter < samples) {
         if (k > (samples - counter))
             k = samples - counter;
-        for (int i = 0; i < dynamicPlanets.size(); i++) {
-            int pk = k;
-            int buffOffset = 0;
-            while (pk != 0) {
-                while (pk > 0 && !dynamicPlanets.at(i).isEmpty()) {
-                    QVector<QVector2D> toBuffer;
-                    if (pk >= dynamicPlanets.at(i).first().count) {
-                        pk -= dynamicPlanets.at(i).first().count;
-                        toBuffer.fill(dynamicPlanets.at(i).first().position, dynamicPlanets.at(i).first().count);
-                        dynamicPlanets[i].removeFirst();
-                    } else {
-                        dynamicPlanets[i].first().count -= pk;
-                        toBuffer.fill(dynamicPlanets.at(i).first().position, pk);
-                        pk = 0;
-                    }
-                    m_glBuffer->write(((i * samples + counter + buffOffset) * 2 + staticPlanets.size()) * sizeof(float), toBuffer.constData(), toBuffer.size() * sizeof(QVector2D));
-                    buffOffset += toBuffer.size();
-                }
-                if (pk != 0) {
-                    DynamicPlanetSample buffSample;
-                    for (int j = 0; j < dynamicPlanets.size(); j++) {
-                        if (orbitFile.read(reinterpret_cast<char*>(&buffSample.count), sizeof(unsigned char)) != sizeof(unsigned char)) {
-                            //Конец файла
-                            qDebug() << "EOF " << j << " " << samples << " " << pk << " " << k << " " << counter;
-                            pk = 0;
-                            break;
-                        }
-                        if (buffSample.count == 0) {
-                            if (j == i) {
-                                //Нет больше сэмплов для этой планеты
-                                qDebug() << "planet has no samples " << j << " " << samples << " " << pk << " " << k << " " << counter;
-                                pk = 0;
-                            }
-                            orbitFile.read(sizeof(QVector2D));
-                        } else {
-                            if (orbitFile.read(reinterpret_cast<char*>(&buffSample.position), sizeof(QVector2D)) != sizeof(QVector2D)) {
-                                //Конец файла
-                                qDebug() << "EOF " << j << " " << samples << " " << pk << " " << k << " " << counter;
-                                pk = 0;
-                                break;
-                            }
-                            dynamicPlanets[j].append(buffSample);
-                        }
-                    }
-                }
-            }
-        }
         counter += k;
     }
 }
