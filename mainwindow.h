@@ -43,7 +43,9 @@ private:
 
     QOpenGLContext* m_context;
     QOpenGLShaderProgram* m_program;
-    QOpenGLBuffer* m_glBuffer;
+
+    QOpenGLBuffer* m_staticGLBuffer;
+    QVector<QOpenGLBuffer*> m_dynamicGLBuffers;
 
     int m_vertexAttr;
     int m_colorUni;
@@ -73,7 +75,7 @@ private:
     QVector2D minBounder;
     QVector2D maxBounder;
     unsigned int samples;
-    QVector<float> staticPlanets;
+    QVector<QVector2D> staticPlanets;
     QVector<int> dynamicPlanetCounters;
     QVector<QList<DynamicPlanetSample> > dynamicPlanets;
     QVector<QRgb> planetColors;

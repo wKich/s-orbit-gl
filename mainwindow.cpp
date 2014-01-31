@@ -4,7 +4,7 @@ MainWindow::MainWindow() :
     m_update_pending(false),
     m_context(nullptr),
     m_program(nullptr),
-    m_glBuffer(nullptr)
+    m_staticGLBuffer(nullptr)
 {
     orbitFile.setFileName(QFileDialog::getOpenFileName(nullptr, "Open Orbit samples"));
     if (orbitFile.open(QFile::ReadOnly)) {
@@ -28,24 +28,29 @@ void MainWindow::render()
     QMatrix4x4 matrix;
     matrix.ortho(minBounder.x(), maxBounder.x(), minBounder.y(), maxBounder.y(), 0.0f, 1.0f);
 
+    incrementCounter();
+
     m_program->bind();
     m_program->setUniformValue(m_matrixUni, matrix);
-    m_glBuffer->bind();
+
+    m_staticGLBuffer->bind();
     m_program->setAttributeBuffer(m_vertexAttr, GL_FLOAT, 0, 2);
     m_program->enableAttributeArray(m_vertexAttr);
-
-    incrementCounter();
-    for (int i = 0; i < staticPlanets.size(); i += 2) {
+    for (int i = 0; i < staticPlanets.size(); i++) {
         m_program->setUniformValue(m_colorUni, QColor(planetColors.at(i)));
-        glDrawArrays(GL_POINTS, i / 2, 1);
+        glDrawArrays(GL_POINTS, i, 1);
     }
+    m_staticGLBuffer->release();
 
     for (int i = 0; i < dynamicPlanets.size(); i++) {
-        m_program->setUniformValue(m_colorUni, QColor(planetColors.at(i + staticPlanets.size() / 2)));
-        glDrawArrays(GL_LINE_STRIP, samples * i + staticPlanets.size() / 2, dynamicPlanetCounters.at(i));
+        m_dynamicGLBuffers[i]->bind();
+        m_program->setAttributeBuffer(m_vertexAttr, GL_FLOAT, 0, 2);
+        m_program->enableAttributeArray(m_vertexAttr);
+        m_program->setUniformValue(m_colorUni, QColor(planetColors.at(i + staticPlanets.size())));
+        glDrawArrays(GL_LINE_STRIP, 0, dynamicPlanetCounters.at(i));
+        m_dynamicGLBuffers[i]->release();
     }
 
-    m_glBuffer->release();
     m_program->release();
 }
 
@@ -122,14 +127,15 @@ void MainWindow::initialize()
     m_colorUni = m_program->uniformLocation("qt_Color");
     m_matrixUni = m_program->uniformLocation("qt_Matrix");
 
-    m_glBuffer = new QOpenGLBuffer;
-    m_glBuffer->create();
-    m_glBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
-    m_glBuffer->bind();
-    m_glBuffer->allocate((dynamicPlanets.size() * samples * 2 + staticPlanets.size()) * sizeof(float));
-    m_glBuffer->write(0, staticPlanets.constData(), staticPlanets.size() * sizeof(float));
+    m_staticGLBuffer = new QOpenGLBuffer;
+    m_staticGLBuffer->create();
+    m_staticGLBuffer->setUsagePattern(QOpenGLBuffer::StaticDraw);
+    m_staticGLBuffer->bind();
+    m_staticGLBuffer->allocate(staticPlanets.size() * sizeof(QVector2D));
+    m_staticGLBuffer->write(0, staticPlanets.constData(), staticPlanets.size() * sizeof(QVector2D));
+    m_staticGLBuffer->release();
+
     readSamples();
-    m_glBuffer->release();
 
     timer.start();
 }
@@ -151,11 +157,12 @@ void MainWindow::readHeader()
     orbitFile.read(reinterpret_cast<char*>(&staticPlanetsCount), sizeof(unsigned int));
     planetColors.resize(staticPlanetsCount);
     orbitFile.read(reinterpret_cast<char*>(planetColors.data()), staticPlanetsCount * sizeof(QRgb));
-    staticPlanets.resize(staticPlanetsCount * 2);
-    orbitFile.read(reinterpret_cast<char*>(staticPlanets.data()), staticPlanetsCount * 2 * sizeof(float));
+    staticPlanets.resize(staticPlanetsCount);
+    orbitFile.read(reinterpret_cast<char*>(staticPlanets.data()), staticPlanetsCount * sizeof(QVector2D));
     unsigned int dynamicPlanetsCount;
     orbitFile.read(reinterpret_cast<char*>(&dynamicPlanetsCount), sizeof(unsigned int));
     dynamicPlanets.resize(dynamicPlanetsCount);
+    m_dynamicGLBuffers.resize(dynamicPlanetsCount);
     dynamicPlanetCounters.fill(0, dynamicPlanetsCount);
     planetColors.resize(staticPlanetsCount + dynamicPlanetsCount);
     orbitFile.read(reinterpret_cast<char*>(planetColors.data() + staticPlanetsCount), dynamicPlanetsCount * sizeof(QRgb));
@@ -187,9 +194,16 @@ void MainWindow::readSamples()
         }
     }
 
-    for (int i = 0; i < dynamicPlanets.size(); i++)
+    for (int i = 0; i < dynamicPlanets.size(); i++) {
+        m_dynamicGLBuffers[i] = new QOpenGLBuffer;
+        m_dynamicGLBuffers[i]->create();
+        m_dynamicGLBuffers[i]->setUsagePattern(QOpenGLBuffer::StaticDraw);
+        m_dynamicGLBuffers[i]->bind();
+        m_dynamicGLBuffers[i]->allocate(dynamicPlanets.at(i).size() * sizeof(QVector2D));
         for (int j = 0; j < dynamicPlanets.at(i).size(); j++)
-            m_glBuffer->write(((i * samples + j) * 2 + staticPlanets.size()) * sizeof(float), reinterpret_cast<const char*>(&dynamicPlanets.at(i).at(j).position), sizeof(QVector2D));
+            m_dynamicGLBuffers[i]->write(j * sizeof(QVector2D), reinterpret_cast<const char*>(&dynamicPlanets.at(i).at(j).position), sizeof(QVector2D));
+        m_dynamicGLBuffers[i]->release();
+    }
 }
 
 void MainWindow::incrementCounter()
