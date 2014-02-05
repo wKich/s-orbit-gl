@@ -70,11 +70,11 @@ private:
         {}
     };
 
-    float deltaT;
+    double deltaT;
+    double time;
     float dotsPerFrame;
     QVector2D minBounder;
     QVector2D maxBounder;
-    unsigned int samples;
     QVector<QVector2D> staticPlanets;
     QVector<int> dynamicPlanetCounters;
     QVector<QList<DynamicPlanetSample> > dynamicPlanets;

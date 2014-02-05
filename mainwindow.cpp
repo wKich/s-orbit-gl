@@ -143,7 +143,8 @@ void MainWindow::initialize()
 void MainWindow::readHeader()
 {
     float x,y;
-    orbitFile.read(reinterpret_cast<char*>(&deltaT), sizeof(float));
+    orbitFile.read(reinterpret_cast<char*>(&deltaT), sizeof(double));
+    orbitFile.read(reinterpret_cast<char*>(&time), sizeof(double));
     orbitFile.read(reinterpret_cast<char*>(&x), sizeof(float));
     orbitFile.read(reinterpret_cast<char*>(&y), sizeof(float));
     minBounder.setX(x);
@@ -152,7 +153,6 @@ void MainWindow::readHeader()
     orbitFile.read(reinterpret_cast<char*>(&y), sizeof(float));
     maxBounder.setX(x);
     maxBounder.setY(y);
-    orbitFile.read(reinterpret_cast<char*>(&samples), sizeof(unsigned int));
     unsigned int staticPlanetsCount;
     orbitFile.read(reinterpret_cast<char*>(&staticPlanetsCount), sizeof(unsigned int));
     planetColors.resize(staticPlanetsCount);
