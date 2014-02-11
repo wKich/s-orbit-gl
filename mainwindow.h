@@ -60,8 +60,8 @@ private:
     void readHeader();
 
     struct DynamicPlanetSample {
-        unsigned char count;
-        unsigned char tmpCounter;
+        unsigned short count;
+        unsigned short tmpCounter;
         QVector2D position;
 
         DynamicPlanetSample() :
@@ -72,7 +72,7 @@ private:
 
     double deltaT;
     double time;
-    float dotsPerFrame;
+    double dotsPerFrame;
     QVector2D minBounder;
     QVector2D maxBounder;
     QVector<QVector2D> staticPlanets;

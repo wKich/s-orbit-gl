@@ -174,7 +174,7 @@ void MainWindow::readSamples()
     while (!eof) {
         DynamicPlanetSample buffSample;
         for (int i = 0; i < dynamicPlanets.size(); i++) {
-            if (orbitFile.read(reinterpret_cast<char*>(&buffSample.count), sizeof(unsigned char)) != sizeof(unsigned char)) {
+            if (orbitFile.read(reinterpret_cast<char*>(&buffSample.count), sizeof(unsigned short)) != sizeof(unsigned short)) {
                 //Конец файла
                 qDebug() << "EOF" << i << dynamicPlanets.at(i).size();
                 eof = true;
