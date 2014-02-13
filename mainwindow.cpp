@@ -209,7 +209,7 @@ void MainWindow::readSamples()
 void MainWindow::incrementCounter()
 {
     //Очищать dotsperframe
-    dotsPerFrame += timer.restart()/1000.0/deltaT;
+    dotsPerFrame += timer.restart()/1000.0/qAbs(deltaT);
     int k = dotsPerFrame;
     dotsPerFrame -= k;
     if (k > 0) {
