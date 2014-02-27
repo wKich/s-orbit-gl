@@ -15,6 +15,8 @@
 #include <QFile>
 #include <QFileDialog>
 
+#include "pointdouble2d.h"
+
 //Вывести диалог выбора файла, открыть файл, прочитать и начать рисовать
 
 class MainWindow : public QWindow
@@ -75,7 +77,7 @@ private:
     double dotsPerFrame;
     QVector2D minBounder;
     QVector2D maxBounder;
-    QVector<QVector2D> staticPlanets;
+    QVector<PointDouble2D> staticPlanets;
     QVector<int> dynamicPlanetCounters;
     QVector<QList<DynamicPlanetSample> > dynamicPlanets;
     QVector<QRgb> planetColors;

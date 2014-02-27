@@ -12,7 +12,8 @@ SOURCES += \
 QMAKE_CXXFLAGS += -std=c++0x
 
 HEADERS += \
-    mainwindow.h
+    mainwindow.h \
+    pointdouble2d.h
 
 RESOURCES += \
     main.qrc

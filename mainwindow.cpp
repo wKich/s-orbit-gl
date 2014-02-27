@@ -34,7 +34,7 @@ void MainWindow::render()
     m_program->setUniformValue(m_matrixUni, matrix);
 
     m_staticGLBuffer->bind();
-    m_program->setAttributeBuffer(m_vertexAttr, GL_FLOAT, 0, 2);
+    m_program->setAttributeBuffer(m_vertexAttr, GL_DOUBLE, 0, 2);
     m_program->enableAttributeArray(m_vertexAttr);
     for (int i = 0; i < staticPlanets.size(); i++) {
         m_program->setUniformValue(m_colorUni, QColor(planetColors.at(i)));
@@ -131,8 +131,8 @@ void MainWindow::initialize()
     m_staticGLBuffer->create();
     m_staticGLBuffer->setUsagePattern(QOpenGLBuffer::StaticDraw);
     m_staticGLBuffer->bind();
-    m_staticGLBuffer->allocate(staticPlanets.size() * sizeof(QVector2D));
-    m_staticGLBuffer->write(0, staticPlanets.constData(), staticPlanets.size() * sizeof(QVector2D));
+    m_staticGLBuffer->allocate(staticPlanets.size() * sizeof(PointDouble2D));
+    m_staticGLBuffer->write(0, staticPlanets.constData(), staticPlanets.size() * sizeof(PointDouble2D));
     m_staticGLBuffer->release();
 
     readSamples();
@@ -145,22 +145,16 @@ void MainWindow::readHeader()
     float x,y;
     orbitFile.read(reinterpret_cast<char*>(&deltaT), sizeof(double));
     orbitFile.read(reinterpret_cast<char*>(&time), sizeof(double));
-    orbitFile.read(reinterpret_cast<char*>(&x), sizeof(float));
-    orbitFile.read(reinterpret_cast<char*>(&y), sizeof(float));
-    minBounder.setX(x);
-    minBounder.setY(y);
-    orbitFile.read(reinterpret_cast<char*>(&x), sizeof(float));
-    orbitFile.read(reinterpret_cast<char*>(&y), sizeof(float));
-    maxBounder.setX(x);
-    maxBounder.setY(y);
+    orbitFile.read(reinterpret_cast<char*>(&minBounder), sizeof(QVector2D));
+    orbitFile.read(reinterpret_cast<char*>(&maxBounder), sizeof(QVector2D));
     unsigned int staticPlanetsCount;
-    orbitFile.read(reinterpret_cast<char*>(&staticPlanetsCount), sizeof(unsigned int));
+    orbitFile.read(reinterpret_cast<char*>(&staticPlanetsCount), sizeof(int));
     planetColors.resize(staticPlanetsCount);
     orbitFile.read(reinterpret_cast<char*>(planetColors.data()), staticPlanetsCount * sizeof(QRgb));
     staticPlanets.resize(staticPlanetsCount);
-    orbitFile.read(reinterpret_cast<char*>(staticPlanets.data()), staticPlanetsCount * sizeof(QVector2D));
+    orbitFile.read(reinterpret_cast<char*>(staticPlanets.data()), staticPlanetsCount * sizeof(PointDouble2D));
     unsigned int dynamicPlanetsCount;
-    orbitFile.read(reinterpret_cast<char*>(&dynamicPlanetsCount), sizeof(unsigned int));
+    orbitFile.read(reinterpret_cast<char*>(&dynamicPlanetsCount), sizeof(int));
     dynamicPlanets.resize(dynamicPlanetsCount);
     m_dynamicGLBuffers.resize(dynamicPlanetsCount);
     dynamicPlanetCounters.fill(0, dynamicPlanetsCount);
@@ -181,8 +175,9 @@ void MainWindow::readSamples()
                 break;
             }
             if (buffSample.count == 0) {
-                orbitFile.read(sizeof(QVector2D));
+                orbitFile.read(sizeof(QVector2D) + 2);
             } else {
+                orbitFile.read(2);
                 if (orbitFile.read(reinterpret_cast<char*>(&buffSample.position), sizeof(QVector2D)) != sizeof(QVector2D)) {
                     //Конец файла
                     qDebug() << "EOF" << i << dynamicPlanets.at(i).size();
